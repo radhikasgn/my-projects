@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+   <style type="text/css">
+       body {
+    font-family: Arial, sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background-color: #f4f4f4;
+    margin: 0;
+    flex-direction: column;
+}
+
+.container {
+    text-align: center;
+}
+
+#chatbotButton {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    padding: 15px 20px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    font-size: 18px;
+    cursor: pointer;
+}
+
+#chatbotButton:hover {
+    background-color: #0056b3;
+}
+
+.popup {
+    display: none;
+    position: fixed;
+    bottom: 80px;
+    right: 20px;
+    border: 1px solid #ccc;
+    background: white;
+    width: 300px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+}
+
+.popup-content {
+    padding: 20px;
+}
+
+.popup-content .close {
+    float: right;
+    font-size: 24px;
+    cursor: pointer;
+}
+
+.popup-content h2 {
+    margin-top: 0;
+}
+
+button {
+    padding: 10px 20px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+button:hover {
+    background-color: #0056b3;
+}
+
+p {
+    margin-top: 20px;
+    font-size: 18px;
+    white-space: pre-wrap;
+}
+   </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Welcome to the Speech Recognition Chatbot</h1>
+    </div>
+
+    <!-- Chatbot Button -->
+    <button id="chatbotButton">Open Chatbot</button>
+
+    <!-- Chatbot Pop-up Window -->
+    <div id="chatbotPopup" class="popup">
+        <div class="popup-content">
+            <span class="close">&times;</span>
+            <h2>Speech Recognition Chatbot</h2>
+            <button id="recordButton">Start Recording</button>
+            <p id="resultText"></p>
+        </div>
+    </div>
+
+    <script type="text/javascript">
+        const data = {
+    "in spanner academy": "Inspanner Academy is a well-known institute.",
+    "hyderabad city": "Hyderabad is the capital of Telangana, known for its rich history.",
+    "jspider academy": "JSpider Academy is famous for IT training.",
+    "prabhas": "Prabhas is an Indian film actor known for his work in Telugu cinema.",
+    "hitec city": "HITEC City, or Hyderabad Information Technology and Engineering Consultancy City, is a major IT hub in Hyderabad. It houses several multinational companies and is a key driver of the city's economy."
+};
+
+// Initialize Speech Recognition
+const recordButton = document.getElementById('recordButton');
+const resultText = document.getElementById('resultText');
+
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+const recognition = new SpeechRecognition();
+
+// Set the recognition language to Indian English
+recognition.lang = 'en-IN';
+recognition.continuous = false;
+recognition.interimResults = false;
+
+recognition.onresult = function(event) {
+    const speechResult = event.results[0][0].transcript.toLowerCase().trim();
+    resultText.textContent = `You said: ${speechResult}`;
+
+    // Find the closest matching entry in the data
+    let bestMatch = null;
+    let bestScore = Infinity;
+
+    for (let key in data) {
+        let score = levenshteinDistance(speechResult, key);
+        if (score < bestScore) {
+            bestScore = score;
+            bestMatch = key;
+        }
+    }
+
+    if (bestMatch && bestScore <= 5) { // You can adjust the threshold for how close the match should be
+        const matchedData = data[bestMatch];
+        resultText.textContent += `\nMatch found: ${matchedData}`;
+        speak(matchedData); // Speak out the matched data
+    } else {
+        const noMatchMessage = "No information available for the given input.";
+        resultText.textContent += `\n${noMatchMessage}`;
+        speak(noMatchMessage);
+    }
+};
+
+recognition.onerror = function(event) {
+    resultText.textContent = `Error occurred in recognition: ${event.error}`;
+};
+
+// Function to start recording
+recordButton.addEventListener('click', () => {
+    recognition.start();
+    resultText.textContent = 'Listening...';
+});
+
+// Function to provide voice output in Indian English
+function speak(text) {
+    const synth = window.speechSynthesis;
+    const utterThis = new SpeechSynthesisUtterance(text);
+    utterThis.lang = 'en-IN'; // Set the voice output language to Indian English
+    synth.speak(utterThis);
+}
+
+// Simple Levenshtein Distance function
+function levenshteinDistance(a, b) {
+    const an = a ? a.length : 0;
+    const bn = b ? b.length : 0;
+    if (an === 0) {
+        return bn;
+    }
+    if (bn === 0) {
+        return an;
+    }
+    const matrix = Array(an + 1).fill(null).map(() => Array(bn + 1).fill(null));
+    for (let i = 0; i <= an; i += 1) {
+        matrix[i][0] = i;
+    }
+    for (let j = 0; j <= bn; j += 1) {
+        matrix[0][j] = j;
+    }
+    for (let i = 0; i < an; i += 1) {
+        for (let j = 0; j < bn; j += 1) {
+            const cost = a[i] === b[j] ? 0 : 1;
+            matrix[i + 1][j + 1] = Math.min(
+                matrix[i][j + 1] + 1, // Deletion
+                matrix[i + 1][j] + 1, // Insertion
+                matrix[i][j] + cost,  // Substitution
+            );
+        }
+    }
+    return matrix[an][bn];
+}
+
+// Chatbot Popup Functionality
+const chatbotButton = document.getElementById('chatbotButton');
+const chatbotPopup = document.getElementById('chatbotPopup');
+const closePopup = document.querySelector('.close');
+
+// Open the chatbot pop-up
+chatbotButton.addEventListener('click', () => {
+    chatbotPopup.style.display = 'block';
+});
+
+// Close the chatbot pop-up
+closePopup.addEventListener('click', () => {
+    chatbotPopup.style.display = 'none';
+});
+
+// Close the pop-up if the user clicks outside of it
+window.addEventListener('click', (event) => {
+    if (event.target === chatbotPopup) {
+        chatbotPopup.style.display = 'none';
+    }
+});
+    </script>
+</body>
+</html>
